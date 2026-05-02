@@ -7,10 +7,10 @@ import html
 
 
 st.set_page_config(
-    page_title="PulseCare Chat",
+    page_title="PulseCare",
     page_icon="💬",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -47,9 +47,66 @@ def init_state() -> None:
         st.session_state.active_history_index = None
     if "conversation_dirty" not in st.session_state:
         st.session_state.conversation_dirty = False
+    if "sidebar_collapsed" not in st.session_state:
+        st.session_state.sidebar_collapsed = False
 
 
 init_state()
+
+sidebar_width = "4.6rem" if st.session_state.sidebar_collapsed else "20rem"
+sidebar_panel_display = "none" if st.session_state.sidebar_collapsed else "block"
+sidebar_rail_display = "flex" if st.session_state.sidebar_collapsed else "none"
+
+st.markdown(
+    f"""
+    <style>
+    [data-testid="stSidebar"] {{
+        width: {sidebar_width} !important;
+        min-width: {sidebar_width} !important;
+        max-width: {sidebar_width} !important;
+    }}
+
+    [data-testid="collapsedControl"] {{
+        display: none !important;
+    }}
+
+    [data-testid="stSidebarHeader"],
+    [data-testid="stSidebarHeader"] button,
+    [data-testid="stSidebarNav"],
+    [data-testid="stSidebarNav"] button,
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapseButton"] button {{
+        display: none !important;
+    }}
+
+    [data-testid="collapsedControl"] button,
+    button[aria-label*="Open sidebar" i],
+    button[aria-label*="Close sidebar" i],
+    button[title*="sidebar" i] {{
+        display: none !important;
+    }}
+
+    button[title*="collapse" i],
+    button[aria-label*="collapse" i],
+    button[aria-label*="sidebar" i] {{
+        display: none !important;
+    }}
+
+    .sidebar-panel {{
+        display: {sidebar_panel_display};
+    }}
+
+    .sidebar-rail-only {{
+        display: {sidebar_rail_display};
+    }}
+
+    .sidebar-rail-col {{
+        min-height: calc(100vh - 2rem);
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ChatGPT-like visual style with a centered conversation column.
 st.markdown(
@@ -58,9 +115,9 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
 
     :root {
-        --bg-main: radial-gradient(circle at 10% 10%, #2a2b31 0%, #1e1f22 45%, #17181b 100%);
-        --panel-bg: #202126;
-        --panel-border: #3a3b45;
+        --bg-main: radial-gradient(circle at top, #2b2c31 0%, #1b1c20 46%, #111114 100%);
+        --panel-bg: #17181c;
+        --panel-border: #31323a;
         --text-strong: #ececf1;
         --text-soft: #a1a1aa;
         --assistant-bubble: #202126;
@@ -69,6 +126,8 @@ st.markdown(
         --input-border: #41424d;
         --button-bg: #10a37f;
         --button-bg-hover: #0d8a6d;
+        --sidebar-rail: #191a1e;
+        --sidebar-accent: #23242a;
     }
 
     html, body, [class*="css"] {
@@ -81,38 +140,41 @@ st.markdown(
     }
 
     .block-container {
-        max-width: 860px;
-        padding-top: 5rem;
+        max-width: 920px;
+        padding-top: 0rem;
         padding-bottom: 1.5rem;
     }
 
-    section[data-testid="stSidebar"] {
-        background: #17181b;
+    [data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    [data-testid="stToolbar"] {
+        display: none !important;
+    }
+
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    header {
+        display: none !important;
+    }
+
+    [data-testid="stSidebar"] {
+        background: #131418;
         border-right: 1px solid var(--panel-border);
+    }
+
+    section[data-testid="stSidebar"] {
+        background: #131418;
         padding-top: 0 !important;
         margin-top: 0 !important;
     }
 
-    /* Take the collapse-button container out of normal flow so it doesn't push content down */
     [data-testid="stSidebarContent"] {
-        position: relative !important;
-        padding-top: 1.4rem !important;
+        padding-top: 0.85rem !important;
         margin-top: 0 !important;
-    }
-
-    [data-testid="stSidebarContent"] > div:first-child {
-        position: absolute !important;
-        top: 0.35rem !important;
-        right: -0.9rem !important;
-        height: auto !important;
-        width: auto !important;
-        z-index: 200 !important;
-    }
-
-    /* Ensure the button inside is visible and positioned naturally inside its now-floating container */
-    [data-testid="stSidebarContent"] > div:first-child > button {
-        position: static !important;
-        visibility: visible !important;
     }
 
     section[data-testid="stSidebar"] > div {
@@ -123,6 +185,239 @@ st.markdown(
     section[data-testid="stSidebar"] > div > div {
         margin-top: 0 !important;
         padding-top: 0 !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="column"] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sidebar-rail-col {
+        background: var(--sidebar-rail);
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 1rem;
+        min-height: calc(100vh - 2rem);
+        padding: 0.85rem 0.5rem;
+    }
+
+    .sidebar-rail-stack {
+        min-height: calc(100vh - 3.75rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .rail-logo,
+    .rail-user {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #2a2b30, #1f2025);
+        color: var(--text-strong);
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        margin: 0 auto;
+    }
+
+    .sidebar-panel {
+        min-width: 0;
+        padding-top: 0.15rem;
+    }
+
+    .sidebar-brand-block {
+        margin: 0 0 1rem;
+    }
+
+    .sidebar-brand {
+        margin: 0 0 1rem;
+    }
+
+    .sidebar-brand-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-strong);
+        line-height: 1.2;
+    }
+
+    .sidebar-brand-subtitle {
+        color: var(--text-soft);
+        font-size: 0.76rem;
+        margin-top: 0.12rem;
+    }
+
+    .sidebar-section {
+        margin-top: 1rem;
+    }
+
+    .sidebar-section-title {
+        margin: 0 0 0.5rem;
+        color: var(--text-soft);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.71rem;
+        font-weight: 700;
+    }
+
+    .sidebar-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.06);
+        margin: 0.9rem 0;
+    }
+
+    .sidebar-empty {
+        color: var(--text-soft);
+        font-size: 0.92rem;
+        padding: 0.45rem 0;
+    }
+
+    .sidebar-history-item button {
+        text-align: left;
+        border-radius: 14px;
+        padding: 0.72rem 0.85rem;
+        background: var(--sidebar-accent);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--text-strong);
+        font-size: 0.94rem;
+        font-weight: 500;
+    }
+
+    .sidebar-history-item button:hover {
+        background: #2c2d35;
+        border-color: rgba(255, 255, 255, 0.09);
+    }
+
+    .sidebar-history-item button:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.35);
+    }
+
+    .sidebar-action button {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, #23242a, #1f2025);
+        color: var(--text-strong);
+        font-weight: 600;
+    }
+
+    .sidebar-action button:hover {
+        background: #292a31;
+    }
+
+    .sidebar-mini-button button {
+        width: 2rem;
+        min-width: 2rem;
+        height: 2rem;
+        padding: 0;
+        border-radius: 999px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text-strong);
+        font-size: 0.95rem;
+    }
+
+    .sidebar-mini-button button:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .sidebar-toggle-wrap {
+        margin: 0.5rem 0 0.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .sidebar-toggle-label {
+        color: var(--text-soft);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: center;
+    }
+
+    .sidebar-action-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+
+    /* Make action buttons visually neutral: transparent background, white text */
+    [data-testid="stSidebar"] .stButton > button {
+        background: transparent !important;
+        color: var(--text-strong) !important;
+        border: 1px solid rgba(255, 255, 255, 0.04) !important;
+        box-shadow: none !important;
+        padding: 0.7rem 0.85rem !important;
+        text-align: left !important;
+        border-radius: 12px !important;
+    }
+
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,0.02) !important;
+    }
+
+    .sidebar-history-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+
+    /* history items: white text, no background; on hover text becomes light gray */
+    .sidebar-history-stack button,
+    .sidebar-empty button {
+        background: transparent !important;
+        border: none !important;
+        color: var(--text-strong) !important;
+        padding: 0.45rem 0 !important;
+        text-align: left !important;
+        font-size: 0.95rem !important;
+    }
+
+    .sidebar-history-stack button:hover {
+        color: #d0d0d4 !important;
+        background: transparent !important;
+    }
+
+    .sidebar-toggle button {
+        width: 2.25rem;
+        min-width: 2.25rem;
+        height: 2.25rem;
+        padding: 0;
+        border-radius: 999px;
+        background: #202126;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text-strong);
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0 auto;
+    }
+
+    .sidebar-toggle button:hover {
+        background: #2a2b31;
+    }
+
+    .sidebar-rail-button button {
+        width: 2rem;
+        min-width: 2rem;
+        height: 2rem;
+        padding: 0;
+        border-radius: 999px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text-strong);
+        font-size: 0.95rem;
+    }
+
+    .sidebar-rail-button button:hover {
+        background: rgba(255, 255, 255, 0.06);
     }
 
     [data-testid="stChatMessage"] {
@@ -165,33 +460,119 @@ st.markdown(
         line-height: 1.55;
     }
 
-    [data-testid="stChatInput"] {
+    /* Bottom bar container that wraps chat input */
+    [data-testid="stBottom"],
+    [data-testid="stBottom"] > div,
+    .stChatFloatingInputContainer,
+    .stChatFloatingInputContainer > div {
+        background: transparent !important;
+        background-color: transparent !important;
+        backdrop-filter: none !important;
+        border-top: none !important;
+        box-shadow: none !important;
+    }
+
+    /* ── Chat input container ── */
+    [data-testid="stChatInput"],
+    [data-testid="stChatInputContainer"] {
         background: var(--input-bg);
-        border: 1px solid var(--input-border);
-        border-radius: 14px;
-        padding: 0.18rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+        border: 1px solid var(--input-border) !important;
+        border-radius: 16px;
+        padding: 0.2rem 0.35rem;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        outline: none !important;
     }
 
-    [data-testid="stChatInput"] > div {
+    /* Kill green focus ring – target BaseUI internal wrapper */
+    [data-baseweb="base-input"],
+    [data-baseweb="base-input"]:focus,
+    [data-baseweb="base-input"]:focus-within,
+    [data-baseweb="input"],
+    [data-baseweb="input"]:focus-within {
+        border-color: var(--input-border) !important;
+        border-top-color: var(--input-border) !important;
+        border-right-color: var(--input-border) !important;
+        border-bottom-color: var(--input-border) !important;
+        border-left-color: var(--input-border) !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Also target wrapper divs at every depth */
+    [data-testid="stChatInput"]:focus-within,
+    [data-testid="stChatInputContainer"]:focus-within,
+    [data-testid="stChatInput"] > div:focus-within,
+    [data-testid="stChatInputContainer"] > div:focus-within,
+    [data-testid="stTextInput"]:focus-within,
+    [data-testid="stTextInput"] > div:focus-within {
+        border-color: var(--input-border) !important;
+        border-top-color: var(--input-border) !important;
+        border-right-color: var(--input-border) !important;
+        border-bottom-color: var(--input-border) !important;
+        border-left-color: var(--input-border) !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    [data-testid="stChatInput"] > div,
+    [data-testid="stChatInputContainer"] > div {
         background: transparent;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
-    [data-testid="stChatInput"] textarea {
-        font-size: 0.98rem;
+    [data-testid="stChatInput"] textarea,
+    [data-testid="stChatInputContainer"] textarea {
+        font-size: 1.02rem;
+        min-height: 3.4rem;
+        color: var(--text-strong);
+        background: transparent;
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    [data-testid="stChatInput"] textarea:focus,
+    [data-testid="stChatInputContainer"] textarea:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    [data-testid="stChatInput"] textarea::placeholder,
+    [data-testid="stChatInputContainer"] textarea::placeholder {
+        color: rgba(161, 161, 170, 0.75);
+    }
+
+    /* ── Hero text input (màn hình chào) ── */
+    [data-testid="stTextInput"] input:focus,
+    .hero-input input:focus {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: var(--input-border) !important;
+    }
+
+    [data-testid="stTextInput"]:focus-within,
+    .hero-input:focus-within {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: var(--input-border) !important;
     }
 
     .stButton button {
         width: 100%;
         border-radius: 10px;
-        border: 1px solid #0f8c6f;
-        background: var(--button-bg);
+        border: none;
+        background: transparent;
         color: #ffffff;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .stButton button:hover {
-        background: var(--button-bg-hover);
+        background: rgba(255, 255, 255, 0.1);
         color: #ffffff;
     }
 
@@ -240,32 +621,6 @@ st.markdown(
         color: rgba(161, 161, 170, 0.75);
     }
 
-    /* top-brand removed: title now lives inside sidebar via .sidebar-title */
-
-    .sidebar-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        margin: 2.5rem 0 0.9rem; /* Increased top margin for spacing */
-    }
-
-    .sidebar-title {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text-strong);
-        line-height: 1.2;
-        margin: 0;
-    }
-
-    .sidebar-new-chat {
-        margin: 0 0 1rem;
-    }
-
-    .sidebar-history-label {
-        margin-top: 0.25rem;
-    }
-
     [data-testid="stCaptionContainer"] {
         color: var(--text-soft);
     }
@@ -288,26 +643,63 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Brand name is now shown inside sidebar via sidebar-title
-
 st.markdown("""
 <script>
-    const observer = new MutationObserver(() => {
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(btn => {
-            if (btn.textContent.includes('Deploy')) {
+    const hideControls = (btn) => {
+        try {
+            const txt = (btn.textContent || "").trim();
+            const title = (btn.title || "").toLowerCase();
+            const aria = (btn.getAttribute && (btn.getAttribute('aria-label') || "")).toLowerCase();
+
+            // Hide the Deploy toolbar button (existing behaviour)
+            if (txt.includes('Deploy')) {
                 btn.style.display = 'none';
             }
-        });
+
+            // Hide any Streamlit sidebar collapse/expand controls that may appear
+            if (title.includes('collapse') || title.includes('expand') || aria.includes('collapse') || aria.includes('sidebar') || txt.includes('❯') || txt.includes('❮') ) {
+                btn.style.display = 'none';
+            }
+
+            // Also hide the collapsedControl container if present
+            const collapsed = document.querySelectorAll('[data-testid="collapsedControl"]');
+            collapsed.forEach(el => { el.style.display = 'none'; });
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    const observer = new MutationObserver(() => {
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(hideControls);
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    document.querySelectorAll('button').forEach(btn => {
-        if (btn.textContent.includes('Deploy')) {
-            btn.style.display = 'none';
-        }
-    });
+
+    // Run once immediately to catch existing controls
+    document.querySelectorAll('button').forEach(hideControls);
 </script>
 """, unsafe_allow_html=True)
+
+def get_conversation_title(messages: list, max_length: int = 20) -> str:
+    """
+    Lấy tiêu đề từ thông điệp đầu tiên của user.
+    Giới hạn 1 dòng, nếu quá dài thì truncate với dấu '...'
+    """
+    # Tìm thông điệp user đầu tiên
+    for msg in messages:
+        if msg.get("role") == "user":
+            title = msg.get("content", "").strip()
+            if title:
+                # Loại bỏ các ký tự xuống dòng và thay khoảng trắng liên tiếp bằng 1 khoảng
+                title = " ".join(title.split())
+                
+                if len(title) > max_length:
+                    return title[:max_length].strip() + "...."
+                return title
+    
+    # Fallback nếu không có user message
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 def save_current_conversation() -> None:
     # Save current messages back into the active history entry, or append a new one.
@@ -315,7 +707,7 @@ def save_current_conversation() -> None:
         return
 
     snapshot = {
-        "title": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "title": get_conversation_title(st.session_state.messages),
         "messages": [m.copy() for m in st.session_state.messages],
     }
 
@@ -362,42 +754,76 @@ def queue_hero_prompt() -> None:
 
 
 with st.sidebar:
-    st.markdown(
-        "<div class='sidebar-header'><div class='sidebar-title'>PulseCare Chat</div></div>",
-        unsafe_allow_html=True,
-    )
+    rail_col, panel_col = st.columns([1, 5], gap="small")
 
-    st.markdown('<div class="sidebar-new-chat">', unsafe_allow_html=True)
-    if st.button("+ New chat"):
-        # Save current changes only when the user actually edited a loaded or active conversation.
-        if st.session_state.get("messages") and st.session_state.conversation_dirty:
-            save_current_conversation()
-        st.session_state.messages = []
-        st.session_state.active_history_index = None
-        st.session_state.conversation_dirty = False
-        safe_rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with rail_col:
+        st.markdown('<div class="sidebar-toggle-wrap sidebar-rail-only">', unsafe_allow_html=True)
+        if st.button("☰" if st.session_state.sidebar_collapsed else "❮", key="sidebar_toggle", help="Mở hoặc thu gọn sidebar"):
+            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+            safe_rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="caps-label sidebar-history-label">History</div>', unsafe_allow_html=True)
 
-    if st.session_state.history:
-        # show most recent first
-        for i in range(len(st.session_state.history) - 1, -1, -1):
-            convo = st.session_state.history[i]
-            if st.button(convo["title"], key=f"hist_{i}"):
-                # Keep the active history intact if it was edited; otherwise just load the selected one.
-                if st.session_state.active_history_index == i:
-                    safe_rerun()
+    with panel_col:
+        if not st.session_state.sidebar_collapsed:
+            st.markdown('<div class="sidebar-brand-block">', unsafe_allow_html=True)
+            st.markdown("<div class='sidebar-brand-name'>PulseCare Chat</div>", unsafe_allow_html=True)
+            st.markdown("<div class='sidebar-brand-subtitle'>AI assistant workspace</div>", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
+            st.markdown('<div class="sidebar-action-stack">', unsafe_allow_html=True)
+            if st.button("+ Đoạn chat mới", key="new_chat"):
                 if st.session_state.get("messages") and st.session_state.conversation_dirty:
                     save_current_conversation()
-
-                st.session_state.messages = [m.copy() for m in convo["messages"]]
-                st.session_state.active_history_index = i
+                st.session_state.messages = []
+                st.session_state.active_history_index = None
                 st.session_state.conversation_dirty = False
                 safe_rerun()
-    else:
-        st.markdown("_No previous chats_")
+
+                # removed search/settings buttons per user request
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="sidebar-section-title">History</div>', unsafe_allow_html=True)
+
+            history_filter = st.text_input(
+                "",
+                placeholder="Tìm cuộc trò chuyện",
+                key="history_filter",
+                label_visibility="collapsed",
+            )
+
+            filtered_history = st.session_state.history
+            if history_filter.strip():
+                query = history_filter.strip().lower()
+                filtered_history = [
+                    convo
+                    for convo in st.session_state.history
+                    if query in convo.get("title", "").lower()
+                    or any(query in msg.get("content", "").lower() for msg in convo.get("messages", []))
+                ]
+
+            if filtered_history:
+                st.markdown('<div class="sidebar-history-stack">', unsafe_allow_html=True)
+                for i in range(len(st.session_state.history) - 1, -1, -1):
+                    convo = st.session_state.history[i]
+                    if convo not in filtered_history:
+                        continue
+
+                    if st.button(convo["title"], key=f"hist_{i}"):
+                        if st.session_state.active_history_index == i:
+                            safe_rerun()
+
+                        if st.session_state.get("messages") and st.session_state.conversation_dirty:
+                            save_current_conversation()
+
+                        st.session_state.messages = [m.copy() for m in convo["messages"]]
+                        st.session_state.active_history_index = i
+                        st.session_state.conversation_dirty = False
+                        safe_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="sidebar-empty">Chưa có cuộc trò chuyện nào</div>', unsafe_allow_html=True)
 
     # Fixed typing speed per user request
     typing_speed = 1.5
